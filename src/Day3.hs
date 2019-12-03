@@ -15,10 +15,7 @@ data Direction = L | R | U | D deriving (Show)
 data Instruction = Instruction { dir :: Direction, steps :: Int } deriving (Show)
 
 parseInstruction :: ReadP Instruction
-parseInstruction = do
-    d <- match <$> uppercase
-    i <- integer
-    return $ Instruction d i
+parseInstruction = Instruction <$> fmap match uppercase <*> integer
   where
     match 'L' = L
     match 'R' = R
@@ -49,7 +46,7 @@ insertWire = insertTuples . toTuples
 
 
 tryIntersection :: (Int, Int) -> State (Set (Int, Int)) Bool
-tryIntersection (x, y) = Set.member (x, y) <$> get
+tryIntersection (x, y) = gets $ Set.member (x, y)
 
 manhattan :: (Int, Int) -> Int
 manhattan (x, y) = abs x + abs y
