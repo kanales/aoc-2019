@@ -1,4 +1,4 @@
-module Day2 where
+module Day2 (day) where
 
 import qualified Data.Vector                   as V
 import qualified Data.Vector.Mutable           as VM
