@@ -7,8 +7,9 @@ import           Text.ParserCombinators.ReadP   ( ReadP
                                                 , char
                                                 )
 import           Parser
-import           Data.Set                       ( Set )
-import qualified Data.Set                      as Set
+import           Data.Maybe
+import           Data.Map                       ( Map )
+import qualified Data.Map                      as Map
 import           Control.Monad.State
 
 data Direction = L | R | U | D deriving (Show)
@@ -36,30 +37,51 @@ step (x, y) (Instruction dir dis) = case dir of
 toTuples :: [Instruction] -> [(Int, Int)]
 toTuples = concatMap fst . tail . scanl (\(_, p) i -> step p i) ([], (0, 0))
 
-insertTuples :: [(Int, Int)] -> State (Set (Int, Int)) ()
+type BoardState = Map (Int, Int) Int
+
+insertTuples :: [(Int, Int)] -> State BoardState ()
 insertTuples ts = do
     s <- get
-    put $ foldl (flip Set.insert) s ts
+    put . fst $ foldl foldFun (s, 0) ts
+    where foldFun (k, d) v = (Map.insert v d k, d + 1)
 
-insertWire :: [Instruction] -> State (Set (Int, Int)) ()
+insertWire :: [Instruction] -> State BoardState ()
 insertWire = insertTuples . toTuples
 
-
-tryIntersection :: (Int, Int) -> State (Set (Int, Int)) Bool
-tryIntersection (x, y) = gets $ Set.member (x, y)
+tryIntersection :: (Int, Int) -> State BoardState Bool
+tryIntersection (x, y) = gets $ Map.member (x, y)
 
 manhattan :: (Int, Int) -> Int
 manhattan (x, y) = abs x + abs y
 
 evaluate :: [Instruction] -> [Instruction] -> Int
-evaluate is1 is2 = flip evalState Set.empty $ do
+evaluate is1 is2 = flip evalState Map.empty $ do
     insertWire is1
-    let tups = toTuples is2
-    ins <- filterM tryIntersection tups
-    return . minimum . fmap manhattan $ ins
+    ins <- intersections is2
+    return . minimum . fmap (manhattan . fst) $ ins
 
+intersections :: [Instruction] -> State BoardState [((Int, Int), Int)]
+intersections is = do
+    let tups = toTuples is
+    fst <$> foldM foldFun ([], 1) tups
+  where
+    foldFun (ins, d) x = do
+        b <- tryIntersection x
+        if b then return ((x, d + 1) : ins, d + 1) else return (ins, d + 1)
+
+delays :: [Instruction] -> [Instruction] -> Int
+delays is1 is2 = flip evalState Map.empty $ do
+    insertWire is1
+    ins <- intersections is2
+    dis <- forM ins $ \(x, d1) -> do
+        d2 <- gets (Map.lookup x)
+        return $ maybe d1 (+ d1) d2
+    return $ minimum dis
 
 p1 :: String -> Int
 p1 s = let (is1 : is2 : _) = parseInstructions <$> lines s in evaluate is1 is2
 
-day = Day p1 undefined
+p2 :: String -> Int
+p2 s = let (is1 : is2 : _) = parseInstructions <$> lines s in delays is1 is2
+
+day = Day p1 p2
