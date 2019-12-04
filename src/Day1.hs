@@ -1,22 +1,25 @@
 module Day1
-    ( day
+    ( day1
     )
 where
 
 import           AOC
+import           Parser
 
+newtype Input = Input { fromInput :: [Int] }
 
-parseInput :: String -> [Int]
-parseInput = fmap read . lines
+instance Read Input where
+    readsPrec _ = readP_to_S $ Input <$> sepBy integer (char '\n')
+
 
 getFuel :: Int -> Int
 getFuel x = x `div` 3 - 2
 
-p1 :: [Int] -> Int
-p1 = sum . fmap getFuel
+p1 :: Input -> Int
+p1 = sum . fmap getFuel . fromInput
 
+p2 :: Input -> Int
+p2 = sum . fmap fun . fromInput
+    where fun = sum . tail . takeWhile (> 0) . iterate getFuel
 
-p2 :: [Int] -> Int
-p2 = sum . fmap fun where fun = sum . tail . takeWhile (> 0) . iterate getFuel
-
-day = Day { part1 = p1 . parseInput, part2 = p2 . parseInput }
+day1 = day p1 p2

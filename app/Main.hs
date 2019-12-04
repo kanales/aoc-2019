@@ -1,19 +1,16 @@
+{-# LANGUAGE LambdaCase #-}
 module Main where
 
 import           System.IO
 import           System.Environment
 import           AOC
-import           Day1                          as D1
-import           Day2                          as D2
-import           Day3                          as D3
-import           Day4                          as D4
+import           Day2
+import           Day3
+import           Day4
+import           Day1
 
 getDay :: Int -> Day
-getDay 1 = D1.day
-getDay 2 = D2.day
-getDay 3 = D3.day
-getDay 4 = D4.day
-getDay _ = undefined
+getDay i = [day1, day2, day3, day4] !! (i - 1)
 
 main :: IO ()
 main = do
@@ -21,4 +18,4 @@ main = do
     input       <- getContents
     let res = getDay d
     let f   = if p == 1 then part1 else part2
-    print $ f res input
+    putStr $ f res input

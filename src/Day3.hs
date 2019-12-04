@@ -1,12 +1,11 @@
-module Day3 where
+module Day3
+    ( day3
+    , Input
+    )
+where
 
 import           AOC
-import           Text.ParserCombinators.ReadP   ( ReadP
-                                                , readP_to_S
-                                                , sepBy1
-                                                , char
-                                                )
-import           Parser
+import           Parser                  hiding ( get )
 import           Data.Maybe
 import           Data.Map                       ( Map )
 import qualified Data.Map                      as Map
@@ -16,12 +15,24 @@ data Direction = L | R | U | D deriving (Show)
 data Instruction = Instruction { dir :: Direction, steps :: Int } deriving (Show)
 
 parseInstruction :: ReadP Instruction
-parseInstruction = Instruction <$> fmap match uppercase <*> integer
-  where
-    match 'L' = L
-    match 'R' = R
-    match 'U' = U
-    match 'D' = D
+parseInstruction =
+    let match 'L' = L
+        match 'R' = R
+        match 'U' = U
+        match 'D' = D
+    in  Instruction <$> fmap match uppercase <*> integer
+
+data Input = Input { getInput :: ([Instruction],[Instruction]) } deriving (Show)
+
+parseInput :: ReadP Input
+parseInput =
+    curry Input
+        <$> commaSep parseInstruction
+        <*  char '\n'
+        <*> commaSep parseInstruction
+
+instance Read Input where
+    readsPrec _ = readP_to_S parseInput
 
 parseInstructions :: String -> [Instruction]
 parseInstructions = fst . last . readP_to_S p
@@ -54,8 +65,8 @@ tryIntersection (x, y) = gets $ Map.member (x, y)
 manhattan :: (Int, Int) -> Int
 manhattan (x, y) = abs x + abs y
 
-evaluate :: [Instruction] -> [Instruction] -> Int
-evaluate is1 is2 = flip evalState Map.empty $ do
+evaluate :: Input -> Int
+evaluate (Input (is1, is2)) = flip evalState Map.empty $ do
     insertWire is1
     ins <- intersections is2
     return . minimum . fmap (manhattan . fst) $ ins
@@ -70,8 +81,8 @@ intersections is = do
         b <- tryIntersection x
         if b then return ((x, d + 1) : ins, d + 1) else return (ins, d + 1)
 
-delays :: [Instruction] -> [Instruction] -> Int
-delays is1 is2 = flip evalState Map.empty $ do
+delays :: Input -> Int
+delays (Input (is1, is2)) = flip evalState Map.empty $ do
     insertWire is1
     ins <- intersections is2
     dis <- forM ins $ \(x, d1) -> do
@@ -79,10 +90,4 @@ delays is1 is2 = flip evalState Map.empty $ do
         return $ maybe d1 (+ d1) d2
     return $ minimum dis
 
-p1 :: String -> Int
-p1 s = let (is1 : is2 : _) = parseInstructions <$> lines s in evaluate is1 is2
-
-p2 :: String -> Int
-p2 s = let (is1 : is2 : _) = parseInstructions <$> lines s in delays is1 is2
-
-day = Day p1 p2
+day3 = day evaluate delays
