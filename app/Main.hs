@@ -6,11 +6,13 @@ import           AOC
 import           Day1                          as D1
 import           Day2                          as D2
 import           Day3                          as D3
+import           Day4                          as D4
 
 getDay :: Int -> Day
 getDay 1 = D1.day
 getDay 2 = D2.day
 getDay 3 = D3.day
+getDay 4 = D4.day
 getDay _ = undefined
 
 main :: IO ()

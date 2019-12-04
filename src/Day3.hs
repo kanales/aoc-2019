@@ -60,6 +60,7 @@ evaluate is1 is2 = flip evalState Map.empty $ do
     ins <- intersections is2
     return . minimum . fmap (manhattan . fst) $ ins
 
+-- Part 2
 intersections :: [Instruction] -> State BoardState [((Int, Int), Int)]
 intersections is = do
     let tups = toTuples is
