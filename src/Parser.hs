@@ -2,7 +2,9 @@ module Parser
     ( digit
     , integer
     , uppercase
+    , comma
     , commaSep
+    , oneOf
     , module ReadP
     )
 where
@@ -16,7 +18,10 @@ digit :: ReadP Char
 digit = satisfy isDigit
 
 integer :: ReadP Int
-integer = read <$> munch1 isDigit
+integer =
+    let ds  = munch1 isDigit
+        ds' = (:) <$> (char '-') <*> ds
+    in  read <$> (ds <|> ds')
 
 uppercase :: ReadP Char
 uppercase = satisfy (\c -> 'A' <= c && c <= 'Z')
@@ -26,3 +31,7 @@ comma = char ','
 
 commaSep :: ReadP a -> ReadP [a]
 commaSep c = sepBy c comma
+
+oneOf :: [a] -> ReadP a
+oneOf []       = empty
+oneOf (c : cs) = pure c <|> oneOf cs

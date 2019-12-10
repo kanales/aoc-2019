@@ -6,7 +6,9 @@ results=(
     232
     6084
     1716
-    1163
+    1163 
+    13787043
+    3892695
 )
 
 test() {
@@ -14,7 +16,7 @@ test() {
     echo "== Day $day =="
 
     echo "part 1"
-    val=$(cat inputs/day$day.txt | stack run $day 1)
+    val=$( stack run $day 1 < inputs/day$day.txt )
     res=${results[$1 + 1]}
     if [[ $val = $res ]]; then
         echo "OK"
@@ -33,7 +35,7 @@ test() {
 }
 
 i=0
-while [[ $i < ${#results[@]} ]]; do 
+while (( $i < ${#results[@]} )); do 
     test $i
     i=$(( $i + 2 ))
 done
