@@ -9,6 +9,7 @@ import           Intcode
 import           Data.Maybe
 import           Data.List
 import           Debug.Trace
+import           Control.Monad.Reader
 
 addOp :: Op
 addOp = RWOp 3 $ \[x, y] d -> Set d (x + y)
@@ -29,9 +30,13 @@ bruteforcePairs :: Int -> [(Int, Int)]
 bruteforcePairs n = (,) <$> [0 .. n] <*> [0 .. n]
 
 p2 :: Intcode -> Int
-p2 c = 100 * noun + verb
-  where
-    ff (n, v) = evalProgram spec (setInputs [n, v] c) == 19690720
-    (noun, verb) = fromJust $ find ff (bruteforcePairs 99)
+p2 c =
+    let ff (n, v) =
+                runReader (evalProgram spec (setInputs [n, v] c)) 0 == 19690720
+        (noun, verb) = fromJust $ find ff (bruteforcePairs 99)
+    in  100 * noun + verb
 
-day2 = day (evalProgram spec . setInputs [12, 2]) p2
+
+day2 =
+    let part1 ic = runReader (evalProgram spec $ setInputs [12, 2] ic) 0
+    in  day part1 p2

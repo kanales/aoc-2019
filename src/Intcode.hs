@@ -16,9 +16,12 @@ import qualified Data.Vector                   as V
 import qualified Data.Vector.Mutable           as VM
 import           Data.Functor
 import           Control.Applicative
+import           Control.Monad.Reader
 import           Control.Monad
 import           Control.Monad.ST
-import           Parser
+import           Control.Monad.Trans
+import           Data.STRef
+import           Parser                  hiding ( get )
 import           Debug.Trace
 
 trace' s x = trace (s ++ " " ++ show x) x
@@ -43,7 +46,7 @@ type Val = Int
 
 type Mode = Int
 data Status = Set Dest Val
-            | Input
+            | Input Dest
             | Continue
             | Output Int
             | Jump Int
@@ -95,36 +98,48 @@ execInstruction v ins = case ins of
     RWInstruction (RWOp _ r) args dest ->
         r <$> mapM (evalParam v) args <*> return dest
 
-procIntcode :: OpSpec -> V.Vector Int -> Int
+procIntcode :: OpSpec -> V.Vector Int -> ReaderT Int (ST s) Int
 procIntcode spec c =
     let init = c
-    in  runST $ do
+        res  = do
             v <- V.thaw init
             o <- recf spec v 0 Nothing
             v <- V.freeze v
             case o of
                 Just x  -> return x
                 Nothing -> (V.!) <$> return v <*> return 0
+    in  res
 
 slice :: VM.MVector s a -> Int -> Int -> ST s [a]
 slice v offset n = VM.read v `mapM` [offset .. offset + n - 1]
 
-recf :: OpSpec -> VM.MVector s Int -> Int -> Maybe Int -> ST s (Maybe Int)
+recf
+    :: OpSpec
+    -> VM.MVector s Int
+    -> Int
+    -> Maybe Int
+    -> ReaderT Int (ST s) (Maybe Int)
 recf spec v pc o = do
     Opcode oc ms <- processOpcode <$> VM.read v pc
     let op = getOp spec oc
     let n  = arity op
-    vals <- slice v (pc + 1) n
+    vals <- lift $ slice v (pc + 1) n
     let ins = mkInstruction op ms vals
-    res <- execInstruction v ins
+    res <- lift $ execInstruction v ins
     case res of
         Set d x -> do
             VM.write v d x
             recf spec v (pc + n + 1) o
-        Output o'  -> recf spec v (pc + n + 1) (Just o')
-        Jump   pos -> recf spec v pos o
-        Continue   -> recf spec v (pc + n + 1) o
-        End        -> return o
+        Output o' -> recf spec v (pc + n + 1) (Just o')
+        Input  d  -> do
+            x <- ask
+            VM.write v d x
+            recf spec v (pc + n + 1) o
+        Jump pos -> recf spec v pos o
+        Continue -> recf spec v (pc + n + 1) o
+        End      -> return o
 
-evalProgram :: OpSpec -> Intcode -> Int
-evalProgram spec c = procIntcode spec (V.fromList $ getIntcode c)
+evalProgram :: OpSpec -> Intcode -> Reader Int Int
+evalProgram spec c =
+    let rt = procIntcode spec (V.fromList $ getIntcode c)
+    in  reader $ \r -> runST (runReaderT rt r)

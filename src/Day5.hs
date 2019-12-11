@@ -6,6 +6,7 @@ where
 
 import qualified Data.Vector.Mutable           as VM
 import           Control.Monad.ST
+import           Control.Monad.Reader
 import           Intcode
 import           AOC
 import           Debug.Trace
@@ -19,8 +20,8 @@ multOp = RWOp 3 $ \[x, y] d -> Set d (x * y)
 halt :: Op
 halt = ROp 0 $ \[] -> End
 
-inOp :: Int -> Op
-inOp x = WOp 1 $ \d -> Set d x
+inOp :: Op
+inOp = WOp 1 $ \d -> Input d
 
 outOp :: Op
 outOp = ROp 1 $ \[x] -> Output x
@@ -37,11 +38,11 @@ lessOp = RWOp 3 $ \[x, y] d -> Set d (if x < y then 1 else 0)
 eqOp :: Op
 eqOp = RWOp 3 $ \[x, y] d -> Set d (if x == y then 1 else 0)
 
-spec :: Int -> OpSpec
-spec i = OpSpec $ \case
+spec :: OpSpec
+spec = OpSpec $ \case
     1  -> addOp
     2  -> multOp
-    3  -> inOp i
+    3  -> inOp
     4  -> outOp
     5  -> jumpTrueOp
     6  -> jumpFalseOp
@@ -49,4 +50,7 @@ spec i = OpSpec $ \case
     8  -> eqOp
     99 -> halt
 
-day5 = day (evalProgram $ spec 1) (evalProgram $ spec 5)
+day5 =
+    let part1 ic = runReader (evalProgram spec ic) 1
+        part2 ic = runReader (evalProgram spec ic) 5
+    in  day part1 part2
