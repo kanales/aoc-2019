@@ -57,8 +57,8 @@ processOpcode inp =
     let ds = show inp
         pad i = if length i < 5 then pad ('0' : i) else i
         [m3, m2, m1, o1, o2] = pad ds
-        o                    = read [o1, o2] :: Int
-        modes                = read . return <$> [m1, m2, m3] :: [Int]
+        o = read [o1, o2] :: Int
+        modes = (read . return <$> [m1, m2, m3]) ++ [0 ..] :: [Int]
     in  Opcode o modes
 
 data Param = Immediate Int | Position Int deriving Show
@@ -91,7 +91,7 @@ mkInstruction op ms vals = case op of
 execInstruction :: VM.MVector s Int -> Instruction -> ST s Status
 execInstruction v ins = case ins of
     RInstruction (ROp _ r) args -> r <$> mapM (evalParam v) args
-    WInstruction (WOp _ r) arg  -> r <$> return arg
+    WInstruction (WOp _ r) arg  -> return $ r arg
     RWInstruction (RWOp _ r) args dest ->
         r <$> mapM (evalParam v) args <*> return dest
 
@@ -99,36 +99,32 @@ procIntcode :: OpSpec -> V.Vector Int -> Int
 procIntcode spec c =
     let init = c
     in  runST $ do
-            let len = V.length init
             v <- V.thaw init
-            o <- recf spec len v 0 Nothing
+            o <- recf spec v 0 Nothing
             v <- V.freeze v
             case o of
                 Just x  -> return x
-                Nothing -> (V.!) <$> (return $ v) <*> return 0
+                Nothing -> (V.!) <$> return v <*> return 0
 
 slice :: VM.MVector s a -> Int -> Int -> ST s [a]
 slice v offset n = VM.read v `mapM` [offset .. offset + n - 1]
 
-recf
-    :: OpSpec -> Int -> VM.MVector s Int -> Int -> Maybe Int -> ST s (Maybe Int)
-recf spec len v pc o = if pc < len
-    then do
-        Opcode oc ms <- processOpcode <$> VM.read v pc
-        let op = getOp spec oc
-        let n  = arity op
-        vals <- slice v (pc + 1) n
-        let ins = mkInstruction op ms vals
-        res <- execInstruction v ins
-        case res of
-            Set d x -> do
-                VM.write v d x
-                recf spec len v (pc + n + 1) o
-            Output o'  -> recf spec len v (pc + n + 1) (Just o')
-            Jump   pos -> recf spec len v pos o
-            Continue   -> recf spec len v (pc + n + 1) o
-            End        -> return o
-    else return o
+recf :: OpSpec -> VM.MVector s Int -> Int -> Maybe Int -> ST s (Maybe Int)
+recf spec v pc o = do
+    Opcode oc ms <- processOpcode <$> VM.read v pc
+    let op = getOp spec oc
+    let n  = arity op
+    vals <- slice v (pc + 1) n
+    let ins = mkInstruction op ms vals
+    res <- execInstruction v ins
+    case res of
+        Set d x -> do
+            VM.write v d x
+            recf spec v (pc + n + 1) o
+        Output o'  -> recf spec v (pc + n + 1) (Just o')
+        Jump   pos -> recf spec v pos o
+        Continue   -> recf spec v (pc + n + 1) o
+        End        -> return o
 
 evalProgram :: OpSpec -> Intcode -> Int
 evalProgram spec c = procIntcode spec (V.fromList $ getIntcode c)

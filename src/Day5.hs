@@ -25,13 +25,11 @@ inOp x = WOp 1 $ \d -> Set d x
 outOp :: Op
 outOp = ROp 1 $ \[x] -> Output x
 
-
 jumpTrueOp :: Op
-jumpTrueOp = RWOp 2 $ \[x] d -> if x /= 0 then Jump d else Continue
+jumpTrueOp = ROp 2 $ \[x, y] -> if x /= 0 then Jump y else Continue
 
 jumpFalseOp :: Op
-jumpFalseOp = RWOp 2 $ \[x] d -> if x == 0 then Jump d else Continue
-
+jumpFalseOp = ROp 2 $ \[x, y] -> if x == 0 then Jump y else Continue
 
 lessOp :: Op
 lessOp = RWOp 3 $ \[x, y] d -> Set d (if x < y then 1 else 0)
@@ -40,7 +38,7 @@ eqOp :: Op
 eqOp = RWOp 3 $ \[x, y] d -> Set d (if x == y then 1 else 0)
 
 spec :: Int -> OpSpec
-spec i = OpSpec $ \x -> case trace (show x) x of
+spec i = OpSpec $ \case
     1  -> addOp
     2  -> multOp
     3  -> inOp i
