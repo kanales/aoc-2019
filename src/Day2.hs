@@ -4,12 +4,16 @@ module Day2
     )
 where
 
+import           Data.List
+import           Data.Maybe
+
 import           AOC
 import           Intcode
-import           Data.Maybe
-import           Data.List
+
 import           Debug.Trace
-import           Control.Monad.Reader
+
+trace' :: (Show x) => x -> x
+trace' x = trace (show x) x
 
 addOp :: Op
 addOp = RWOp 3 $ \[x, y] d -> Set d (x + y)
@@ -29,14 +33,18 @@ spec = OpSpec $ \case
 bruteforcePairs :: Int -> [(Int, Int)]
 bruteforcePairs n = (,) <$> [0 .. n] <*> [0 .. n]
 
+eval :: OpSpec -> Intcode -> Int
+eval spec ic = head . getIntcode $ execProgram spec ic initialize
+
 p2 :: Intcode -> Int
 p2 c =
-    let ff (n, v) =
-                runReader (evalProgram spec (setInputs [n, v] c)) 0 == 19690720
+    let ff (n, v) = eval spec (setInputs [n, v] c) == 19690720
         (noun, verb) = fromJust $ find ff (bruteforcePairs 99)
     in  100 * noun + verb
 
 
-day2 =
-    let part1 ic = runReader (evalProgram spec $ setInputs [12, 2] ic) 0
-    in  day part1 p2
+setInputs :: [Int] -> Intcode -> Intcode
+setInputs inputs =
+    let f c = head c : inputs ++ drop 3 c in Intcode . f . getIntcode
+
+day2 = let part1 ic = eval spec (setInputs [12, 2] ic) in day part1 p2

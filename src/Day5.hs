@@ -1,56 +1,39 @@
 {-# LANGUAGE LambdaCase #-}
 module Day5
     ( day5
+    , spec
     )
 where
 
-import qualified Data.Vector.Mutable           as VM
-import           Control.Monad.ST
-import           Control.Monad.Reader
+
+import           Data.Maybe
 import           Intcode
 import           AOC
 import           Debug.Trace
 
-addOp :: Op
-addOp = RWOp 3 $ \[x, y] d -> Set d (x + y)
-
-multOp :: Op
-multOp = RWOp 3 $ \[x, y] d -> Set d (x * y)
-
-halt :: Op
-halt = ROp 0 $ \[] -> End
-
-inOp :: Op
-inOp = WOp 1 $ \d -> Input d
-
-outOp :: Op
-outOp = ROp 1 $ \[x] -> Output x
-
-jumpTrueOp :: Op
-jumpTrueOp = ROp 2 $ \[x, y] -> if x /= 0 then Jump y else Continue
-
-jumpFalseOp :: Op
-jumpFalseOp = ROp 2 $ \[x, y] -> if x == 0 then Jump y else Continue
-
-lessOp :: Op
-lessOp = RWOp 3 $ \[x, y] d -> Set d (if x < y then 1 else 0)
-
-eqOp :: Op
-eqOp = RWOp 3 $ \[x, y] d -> Set d (if x == y then 1 else 0)
 
 spec :: OpSpec
 spec = OpSpec $ \case
-    1  -> addOp
-    2  -> multOp
-    3  -> inOp
-    4  -> outOp
-    5  -> jumpTrueOp
-    6  -> jumpFalseOp
-    7  -> lessOp
-    8  -> eqOp
-    99 -> halt
+    -- ADD (x y) -> d
+    1  -> RWOp 3 $ \[x, y] d -> Set d (x + y)
+    -- MUL (x y) -> d
+    2  -> RWOp 3 $ \[x, y] d -> Set d (x * y)
+    -- GET input
+    3  -> WOp 1 $ \d -> Input d
+    -- SET output
+    4  -> ROp 1 $ \[x] -> Output x
+    -- JMP true
+    5  -> ROp 2 $ \[x, y] -> if x /= 0 then Jump y else Continue
+    -- JMP false
+    6  -> ROp 2 $ \[x, y] -> if x == 0 then Jump y else Continue
+    -- LE
+    7  -> RWOp 3 $ \[x, y] d -> Set d (if x < y then 1 else 0)
+    -- EQ
+    8  -> RWOp 3 $ \[x, y] d -> Set d (if x == y then 1 else 0)
+    -- HALT
+    99 -> ROp 0 $ \[] -> End
 
 day5 =
-    let part1 ic = runReader (evalProgram spec ic) 1
-        part2 ic = runReader (evalProgram spec ic) 5
+    let part1 ic = fromJust . evalProgram spec ic $ (initialize >> resume 1)
+        part2 ic = fromJust . evalProgram spec ic $ (initialize >> resume 5)
     in  day part1 part2
